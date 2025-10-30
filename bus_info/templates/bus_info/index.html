@@ -214,7 +214,7 @@
                         </div>
                         <div style="margin-bottom: 10px;">
                             <button onclick="loadDailyList()" style="background-color: #3498db; color: white; padding: 8px 16px; border: none; border-radius: 3px; cursor: pointer;">
-                                📅 일별 데이터 목록 보기
+                                📅 일별 데이터 목록 보기(정보 갱신)
                             </button>
                             <button onclick="downloadAllFiles()" style="background-color: #9b59b6; color: white; padding: 8px 16px; border: none; border-radius: 3px; cursor: pointer;">
                                 💾 데이터베이스 파일 다운로드
@@ -280,16 +280,15 @@
                                 Math.round((item.successful_collections / item.total_collections) * 100) : 0;
                             
                             listHtml += `
-                                <div style="background-color: white; padding: 12px; margin: 8px 0; border-radius: 5px; border-left: 4px solid #3498db; cursor: pointer;" 
-                                     onclick="showDateData('${item.date}')">
+                                <div style="background-color: white; padding: 12px; margin: 8px 0; border-radius: 5px; border-left: 4px solid #3498db; position: relative;">
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <div>
+                                        <div style="cursor: pointer; flex: 1;" onclick="showDateData('${item.date}')">
                                             <strong style="color: #2c3e50;">${item.date}</strong>
                                             <div style="font-size: 12px; color: #7f8c8d; margin-top: 4px;">
                                                 마지막 수집: ${item.last_collection_time}
                                             </div>
                                         </div>
-                                        <div style="text-align: right;">
+                                        <div style="text-align: right; cursor: pointer;" onclick="showDateData('${item.date}')">
                                             <div style="font-size: 14px; font-weight: bold; color: #27ae60;">
                                                 총 ${item.total_collections}회
                                             </div>
@@ -302,6 +301,7 @@
                                                 성공률: ${successRate}%
                                             </div>
                                         </div>
+
                                     </div>
                                 </div>
                             `;
@@ -361,8 +361,13 @@
             let popupHtml = `
                 <div id="popup-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center;">
                     <div style="background-color: white; width: 90%; max-width: 900px; height: 90%; max-height: 90vh; border-radius: 10px; padding: 0; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: flex; flex-direction: column;">
-                        <div style="padding: 20px; border-bottom: 2px solid #3498db; background: linear-gradient(135deg, #3498db, #2980b9); text-align: center; flex-shrink: 0;">
+                        <div style="padding: 20px; border-bottom: 2px solid #3498db; background: linear-gradient(135deg, #3498db, #2980b9); text-align: center; flex-shrink: 0; position: relative;">
                             <h3 style="margin: 0; color: white; font-size: 18px;">📅 ${date} 수집 데이터 (총 ${data.pagination.total_collections}회)</h3>
+                            <button onclick="confirmDeleteDate('${date}')" 
+                                    style="position: absolute; top: 15px; right: 15px; background-color: rgba(231, 76, 60, 0.9); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 12px; font-weight: bold; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center;"
+                                    onmouseover="this.style.backgroundColor='rgba(192, 57, 43, 0.9)'; this.style.transform='scale(1.1)'"
+                                    onmouseout="this.style.backgroundColor='rgba(231, 76, 60, 0.9)'; this.style.transform='scale(1)'"
+                                    title="이 날짜의 모든 데이터 삭제">🗑️</button>
                         </div>
                         
                         <!-- 테이블 헤더를 팝업 제목 바로 밑에 표시 -->
@@ -370,9 +375,9 @@
                             <table style="width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed;">
                                 <thead>
                                     <tr style="background: linear-gradient(135deg, #3498db, #2980b9); color: white;">
-                                        <th style="padding: 10px; border: none; font-weight: bold; width: 33.33%;">차량번호</th>
-                                        <th style="padding: 10px; border: none; font-weight: bold; width: 33.33%;">잔여좌석</th>
-                                        <th style="padding: 10px; border: none; font-weight: bold; width: 33.34%;">정류소순번 ↑</th>
+                                        <th style="padding: 10px; border: none; font-weight: bold; width: 25%;">차량번호</th>
+                                        <th style="padding: 10px; border: none; font-weight: bold; width: 20%;">잔여좌석</th>
+                                        <th style="padding: 10px; border: none; font-weight: bold; width: 55%;">정류소 (순번 ↑)</th>
                                     </tr>
                                 </thead>
                             </table>
@@ -418,11 +423,16 @@
                             
                             const rowBgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
                             
+                            // 정류소 이름 가져오기 (JavaScript에서 처리)
+                            const stationName = getStationName(bus.stationSeq);
+                            
                             popupHtml += `
                                 <tr style="background-color: ${rowBgColor}; transition: background-color 0.2s ease;" onmouseover="this.style.backgroundColor='#e3f2fd'" onmouseout="this.style.backgroundColor='${rowBgColor}'">
-                                    <td style="padding: 8px; border: none; text-align: center; font-weight: 500; width: 33.33%;">${bus.plateNo}</td>
-                                    <td style="padding: 8px; border: none; text-align: center; color: ${seatColor}; font-weight: bold; font-size: 13px; width: 33.33%;">${bus.remainSeatCnt}석</td>
-                                    <td style="padding: 8px; border: none; text-align: center; color: #6c757d; width: 33.34%;">${bus.stationSeq}</td>
+                                    <td style="padding: 8px; border: none; text-align: center; font-weight: 500; width: 25%;">${bus.plateNo}</td>
+                                    <td style="padding: 8px; border: none; text-align: center; color: ${seatColor}; font-weight: bold; font-size: 13px; width: 20%;">${bus.remainSeatCnt}석</td>
+                                    <td style="padding: 8px; border: none; text-align: left; color: #2c3e50; width: 55%; font-size: 11px;">
+                                        <span style="color: #6c757d; font-weight: bold;">${bus.stationSeq}번</span> ${stationName}
+                                    </td>
                                 </tr>
                             `;
                         });
@@ -477,16 +487,157 @@
             }
         }
         
+        // 정류소 이름 매핑 (busstop.py와 동일한 데이터)
+        const BUS_STOPS_8201 = [
+            "미사용",
+            "안성종합버스터미널",
+            "버스터미널입구(경유)",
+            "안성맞춤공감센터",
+            "한경국립대학교",
+            "중앙대.롯데캐슬아파트",
+            "대림동산",
+            "공도시외버스정류장",
+            "주은.풍림아파트",
+            "안성TG(경유)",
+            "안성JC(경유)",
+            "남사진위IC(경유)",
+            "오산IC(경유)",
+            "동탄JC(경유)",
+            "기흥동탄IC(경유)",
+            "기흥휴게소(경유)",
+            "수원신갈IC(경유)",
+            "신갈JC(경유)",
+            "죽전(경유)",
+            "금곡(경유)",
+            "서울TG(경유)",
+            "판교진입(경유)",
+            "판교역.낙생육교.현대백화점",
+            "매송사거리(경유)",
+            "벌말사거리(경유)",
+            "하탑사거리(경유)",
+            "야탑역.종합버스터미널(광역버스)",
+            "야탑역.종합버스터미널(전면)",
+            "하탑사거리(경유)",
+            "벌말사거리(경유)",
+            "매송사거리(경유)",
+            "판교역.낙생육교.현대백화점",
+            "판교출입(경유)",
+            "서울TG(경유)",
+            "금곡(경유)",
+            "죽전(경유)",
+            "신갈JC(경유)",
+            "수원신갈IC(경유)",
+            "기흥휴게소(경유)",
+            "기흥동탄IC(경유)",
+            "동탄JC(경유)",
+            "오산IC(경유)",
+            "남사진위IC(경유)",
+            "안성JC(경유)",
+            "안성TG(경유)",
+            "안성주은.풍림아파트",
+            "공도시외버스정류장",
+            "대림동산",
+            "중앙대.롯데캐슬아파트",
+            "한경국립대학교",
+            "안성맞춤공감센터.서광아파트",
+            "안성종합버스터미널"
+        ];
+        
+        // 정류소 순번으로 정류소 이름 조회
+        function getStationName(stationSeq) {
+            const seq = parseInt(stationSeq);
+            if (seq >= 0 && seq < BUS_STOPS_8201.length) {
+                return BUS_STOPS_8201[seq];
+            }
+            return "알 수 없는 정류소";
+        }
+        
+        // 삭제 확인 팝업 함수
+        function confirmDeleteDate(date) {
+            const confirmHtml = `
+                <div id="confirm-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); z-index: 2000; display: flex; justify-content: center; align-items: center;">
+                    <div style="background-color: white; width: 400px; border-radius: 10px; padding: 0; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                        <div style="padding: 20px; border-bottom: 2px solid #e74c3c; background: linear-gradient(135deg, #e74c3c, #c0392b); text-align: center;">
+                            <h3 style="margin: 0; color: white; font-size: 18px;">⚠️ 데이터 삭제 확인</h3>
+                        </div>
+                        <div style="padding: 20px; text-align: center;">
+                            <p style="margin: 0 0 20px 0; color: #2c3e50; font-size: 16px;">
+                                <strong>${date}</strong> 날짜의 모든 수집 데이터를 삭제하시겠습니까?
+                            </p>
+                            <p style="margin: 0 0 20px 0; color: #e74c3c; font-size: 14px;">
+                                ⚠️ 이 작업은 되돌릴 수 없습니다!
+                            </p>
+                            <div style="display: flex; gap: 10px; justify-content: center;">
+                                <button onclick="closeConfirmPopup()" 
+                                        style="background-color: #95a5a6; color: white; border: none; border-radius: 5px; padding: 10px 20px; cursor: pointer; font-size: 14px; transition: all 0.3s ease;"
+                                        onmouseover="this.style.backgroundColor='#7f8c8d'"
+                                        onmouseout="this.style.backgroundColor='#95a5a6'">취소</button>
+                                <button onclick="deleteDate('${date}')" 
+                                        style="background-color: #e74c3c; color: white; border: none; border-radius: 5px; padding: 10px 20px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s ease;"
+                                        onmouseover="this.style.backgroundColor='#c0392b'"
+                                        onmouseout="this.style.backgroundColor='#e74c3c'">삭제</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', confirmHtml);
+        }
+        
+        // 확인 팝업 닫기
+        function closeConfirmPopup() {
+            const confirmPopup = document.getElementById('confirm-overlay');
+            if (confirmPopup) {
+                confirmPopup.remove();
+            }
+        }
+        
+        // 날짜 데이터 삭제 함수
+        async function deleteDate(date) {
+            try {
+                // 로딩 표시
+                const deleteButton = event.target;
+                const originalText = deleteButton.textContent;
+                deleteButton.textContent = '삭제 중...';
+                deleteButton.disabled = true;
+                
+                const response = await fetch(`/api/collection/delete-date/?date=${date}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ ${data.message}\n\n삭제된 수집 데이터: ${data.deleted_collections}개\n삭제된 버스 데이터: ${data.deleted_buses}개`);
+                    closeConfirmPopup();
+                    // 일별 목록 새로고침
+                    loadDailyList(dailyListPage);
+                } else {
+                    alert('❌ 삭제 실패: ' + data.error);
+                    deleteButton.textContent = originalText;
+                    deleteButton.disabled = false;
+                }
+                
+            } catch (error) {
+                alert('❌ 오류 발생: ' + error.message);
+                const deleteButton = event.target;
+                deleteButton.textContent = '삭제';
+                deleteButton.disabled = false;
+            }
+        }
+        
         // ESC 키로 팝업 닫기
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
                 closePopup();
+                closeConfirmPopup();
             }
         });
         
         async function downloadAllFiles() {
             try {
-                if (!confirm('데이터베이스 파일을 다운로드하시겠습니까?\n\n이 파일에는 모든 수집된 버스 데이터가 포함되어 있습니다.')) {
+                if (!confirm('데이터베이스 파일을 다운로드하시겠습니까?\n\n이 파일에는 모든 수집된 버스 데이터가 포함되어 있습니다.\n\n데이터 기록을 원하시면 해당 파일을 루트 디렉토리 내 배치하여 db.sqlite3 라는 이름으로 변경해 주세요.')) {
                     return;
                 }
                 

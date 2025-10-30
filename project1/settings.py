@@ -85,6 +85,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
 ]
 
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -144,15 +145,11 @@ STATICFILES_FINDERS = [
 # CloudType 배포 설정
 PORT = int(os.environ.get('PORT', 8000))
 
-# 로깅 설정 (디버깅 강화)
+# 로깅 설정 (성능 최적화)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
         'simple': {
             'format': '{levelname} {message}',
             'style': '{',
@@ -161,22 +158,22 @@ LOGGING = {
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+            'formatter': 'simple',
         },
     },
     'root': {
         'handlers': ['console'],
-        'level': 'DEBUG' if DEBUG else 'INFO',
+        'level': 'WARNING',  # DEBUG 로그 제거
     },
     'loggers': {
         'django': {
             'handlers': ['console'],
-            'level': 'DEBUG' if DEBUG else 'INFO',
+            'level': 'WARNING',  # Django 내부 로그 제거
             'propagate': False,
         },
-        'django.request': {
+        'django.server': {
             'handlers': ['console'],
-            'level': 'DEBUG',
+            'level': 'INFO',  # 서버 시작 메시지만 표시
             'propagate': False,
         },
     },

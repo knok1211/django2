@@ -1,5 +1,6 @@
 from .data_collector import bus_collector
 from .models import BusCollection, BusData
+from .busstop import get_bus_stop_name, BUS_STOPS_8201
 import os
 import json
 from django.http import JsonResponse, HttpResponse
@@ -175,7 +176,8 @@ def get_latest_data(request):
             buses_data.append({
                 'plateNo': bus.plate_no,
                 'remainSeatCnt': bus.remain_seat_cnt,
-                'stationSeq': bus.station_seq
+                'stationSeq': bus.station_seq,
+                'stationName': get_bus_stop_name(bus.station_seq)
             })
         
         # 추가 정렬 (숫자 순서로)
@@ -215,42 +217,7 @@ def get_latest_data(request):
         }, status=500)
 
 
-@csrf_exempt
-@require_http_methods(["GET"])
-def download_data_file(request):
-    """
-    특정 데이터 파일 다운로드
-    """
-    try:
-        filename = request.GET.get('filename')
-        if not filename:
-            return JsonResponse({
-                'success': False,
-                'error': '파일명이 필요합니다.'
-            }, status=400)
-        
-        status = bus_collector.get_status()
-        data_dir = status['data_directory']
-        filepath = os.path.join(data_dir, filename)
-        
-        if not os.path.exists(filepath):
-            return JsonResponse({
-                'success': False,
-                'error': '파일을 찾을 수 없습니다.'
-            }, status=404)
-        
-        with open(filepath, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        response = HttpResponse(content, content_type='application/json')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        return response
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+
 
 
 @csrf_exempt
@@ -356,7 +323,8 @@ def get_date_data(request):
                 buses_data.append({
                     'plateNo': bus.plate_no,
                     'remainSeatCnt': bus.remain_seat_cnt,
-                    'stationSeq': bus.station_seq
+                    'stationSeq': bus.station_seq,
+                    'stationName': get_bus_stop_name(bus.station_seq)
                 })
             
             # 추가 정렬 (숫자 순서로)
@@ -397,6 +365,61 @@ def get_date_data(request):
         return JsonResponse({
             'success': False,
             'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["DELETE"])
+def delete_date_data(request):
+    """
+    특정 날짜의 모든 수집 데이터 삭제
+    """
+    try:
+        date_str = request.GET.get('date')
+        if not date_str:
+            return JsonResponse({
+                'success': False,
+                'error': '날짜 파라미터가 필요합니다.'
+            }, status=400)
+        
+        try:
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return JsonResponse({
+                'success': False,
+                'error': '올바른 날짜 형식이 아닙니다. (YYYY-MM-DD)'
+            }, status=400)
+        
+        # 해당 날짜의 수집 데이터 조회
+        collections = BusCollection.objects.filter(
+            route_id=bus_collector.route_id,
+            collection_date=target_date
+        )
+        
+        if not collections.exists():
+            return JsonResponse({
+                'success': False,
+                'error': '해당 날짜에 삭제할 데이터가 없습니다.'
+            }, status=404)
+        
+        # 삭제 전 개수 확인
+        total_collections = collections.count()
+        total_buses = BusData.objects.filter(collection__in=collections).count()
+        
+        # 데이터 삭제 (CASCADE로 관련 BusData도 자동 삭제됨)
+        collections.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'{date_str} 날짜의 데이터가 성공적으로 삭제되었습니다.',
+            'deleted_collections': total_collections,
+            'deleted_buses': total_buses
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'데이터 삭제 실패: {str(e)}'
         }, status=500)
 
 

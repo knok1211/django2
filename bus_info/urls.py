@@ -13,6 +13,6 @@ urlpatterns = [
     path('api/collection/latest/', views.get_latest_data, name='latest_data'),
     path('api/collection/daily-list/', views.get_daily_list, name='daily_list'),
     path('api/collection/date-data/', views.get_date_data, name='date_data'),
-    path('api/collection/download/', views.download_data_file, name='download_data'),
+    path('api/collection/delete-date/', views.delete_date_data, name='delete_date_data'),
     path('api/collection/download-all/', views.download_all_files, name='download_all_files'),
 ]

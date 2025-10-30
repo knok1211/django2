@@ -1,9 +1,6 @@
-import json
-import os
 import threading
 import time
-from datetime import datetime, time as dt_time, date
-from django.conf import settings
+from datetime import datetime, time as dt_time
 from django.utils import timezone
 from .config import (
     GBIS_SERVICE_KEY, 
@@ -17,7 +14,7 @@ import urllib.parse
 
 class BusDataCollector:
     """
-    버스 데이터를 자동으로 수집하고 JSON 파일에 저장하는 클래스
+    버스 데이터를 자동으로 수집하고 데이터베이스에 저장하는 클래스
     """
     
     def __init__(self, route_id="234001730", interval_minutes=2):
@@ -25,11 +22,6 @@ class BusDataCollector:
         self.interval_seconds = interval_minutes * 60
         self.is_running = False
         self.thread = None
-        self.data_dir = os.path.join(settings.BASE_DIR, 'bus_data')
-        
-        # 데이터 저장 디렉토리 생성
-        if not os.path.exists(self.data_dir):
-            os.makedirs(self.data_dir)
     
     def is_skip_time(self, query_time_str):
         """
@@ -57,62 +49,7 @@ class BusDataCollector:
             print(f"시간 파싱 오류: {e}")
             return False
     
-    def get_date_from_query_time(self, query_time_str):
-        """
-        쿼리 시간에서 날짜 추출 (YYYY-MM-DD 형식)
-        """
-        try:
-            if query_time_str == 'N/A':
-                # 쿼리 시간이 없는 경우 기본값 반환
-                return '1970-01-01'
-            
-            # query_time 형식: "2024-01-01 12:00:00" 또는 "2024-01-01 12:00:00.123"
-            # 밀리초 부분이 있으면 제거
-            if '.' in query_time_str:
-                query_time_str = query_time_str.split('.')[0]
-            
-            query_datetime = datetime.strptime(query_time_str, '%Y-%m-%d %H:%M:%S')
-            return query_datetime.strftime('%Y-%m-%d')
-            
-        except Exception as e:
-            print(f"날짜 파싱 오류: {e}")
-            # 파싱 실패 시 쿼리 시간 문자열에서 날짜 부분만 추출 시도
-            try:
-                if query_time_str and len(query_time_str) >= 10:
-                    return query_time_str[:10]  # "YYYY-MM-DD" 부분만 추출
-                else:
-                    return '1970-01-01'
-            except:
-                return '1970-01-01'
-    
-    def get_iso_from_query_time(self, query_time_str):
-        """
-        쿼리 시간을 ISO 형식으로 변환
-        """
-        try:
-            if query_time_str == 'N/A':
-                # 쿼리 시간이 없는 경우 원본 쿼리 시간 문자열 반환
-                return query_time_str
-            
-            # query_time 형식: "2024-01-01 12:00:00" 또는 "2024-01-01 12:00:00.123"
-            # 밀리초 부분 처리
-            if '.' in query_time_str:
-                # 밀리초가 있는 경우: "2024-01-01 12:00:00.123"
-                dt_part, ms_part = query_time_str.split('.')
-                query_datetime = datetime.strptime(dt_part, '%Y-%m-%d %H:%M:%S')
-                # 밀리초를 마이크로초로 변환 (3자리 -> 6자리)
-                microseconds = int(ms_part.ljust(6, '0')[:6])
-                query_datetime = query_datetime.replace(microsecond=microseconds)
-            else:
-                # 밀리초가 없는 경우: "2024-01-01 12:00:00"
-                query_datetime = datetime.strptime(query_time_str, '%Y-%m-%d %H:%M:%S')
-            
-            return query_datetime.isoformat()
-            
-        except Exception as e:
-            print(f"ISO 시간 변환 오류: {e}")
-            # 파싱 실패 시 원본 쿼리 시간 문자열 반환
-            return query_time_str
+
 
     def collect_bus_data(self):
         """
@@ -339,8 +276,7 @@ class BusDataCollector:
         return {
             'is_running': self.is_running,
             'route_id': self.route_id,
-            'interval_minutes': self.interval_seconds // 60,
-            'data_directory': self.data_dir
+            'interval_minutes': self.interval_seconds // 60
         }
 
 
