@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,12 +21,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-1uasu+wjp=ehjw_9)$ikovne&2w+a2%a0(%j*_thq2g#&5r!c)'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-1uasu+wjp=ehjw_9)$ikovne&2w+a2%a0(%j*_thq2g#&5r!c)')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'svc.sel3.cloudtype.app,localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -73,13 +74,14 @@ WSGI_APPLICATION = 'project1.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-CSRF_TRUSTED_ORIGINS = ['https://*.cloudtype.app']
+# CSRF 설정
+csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', 'https://svc.sel3.cloudtype.app:31658,https://svc.sel3.cloudtype.app,https://*.cloudtype.app').split(',')
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins]
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
-
     }
 }
 
@@ -119,6 +121,29 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# CloudType 배포 설정
+if not DEBUG:
+    # 보안 설정
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # 로깅 설정
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+            },
+        },
+        'root': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    }
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
