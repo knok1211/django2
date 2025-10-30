@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>경기도 버스 데이터 수집</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #34495e;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            display: none;
+        }
+        .bus-item {
+            background-color: white;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        .bus-header {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .bus-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .info-item {
+            background-color: #f8f9fa;
+            padding: 8px;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        .seat-info {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .crowded-info {
+            color: #e74c3c;
+        }
+        .error {
+            background-color: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .loading {
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚌 경기도 버스 데이터 수집</h1>
+        
+
+        
+        <h2>📊 자동 데이터 수집(직행좌석 8201)</h2>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button onclick="startCollection()" style="background-color: #27ae60;">수집 시작</button>
+            <button onclick="stopCollection()" style="background-color: #e74c3c;">수집 중지</button>
+            <button onclick="collectOnce()" style="background-color: #3498db;">한 번 수집</button>
+        </div>
+        
+        <div id="collection-status" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; display: none;">
+            <h3>📈 수집 상태</h3>
+            <div id="status-content"></div>
+        </div>
+        
+        <div id="daily-list-section" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; display: none;">
+            <h3>📅 일별 수집 데이터 목록</h3>
+            <div id="daily-list-content"></div>
+        </div>
+        
+        <div id="result" class="result">
+            <div id="loading" class="loading" style="display: none;">데이터를 불러오는 중...</div>
+            <div id="content"></div>
+        </div>
+    </div>
+
+    <script>
+
+        
+        // 데이터 수집 관련 함수들
+        async function startCollection() {
+            try {
+                const response = await fetch('/api/collection/start/', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ 자동 데이터 수집이 시작되었습니다!');
+                    getStatus(); // 상태 업데이트
+                } else {
+                    alert('❌ 수집 시작 실패: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ 오류 발생: ' + error.message);
+            }
+        }
+        
+        async function stopCollection() {
+            try {
+                const response = await fetch('/api/collection/stop/', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('⏹️ 자동 데이터 수집이 중지되었습니다.');
+                    getStatus(); // 상태 업데이트
+                } else {
+                    alert('❌ 수집 중지 실패: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ 오류 발생: ' + error.message);
+            }
+        }
+        
+        async function collectOnce() {
+            try {
+                const response = await fetch('/api/collection/once/', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('📊 데이터 수집이 완료되었습니다!');
+                    getStatus(); // 상태 업데이트
+                } else {
+                    alert('❌ 수집 실패: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ 오류 발생: ' + error.message);
+            }
+        }
+        
+        let currentPage = 1;
+        const perPage = 10;
+        
+        async function getStatus(page = 1) {
+            try {
+                currentPage = page;
+                const response = await fetch(`/api/collection/status/?page=${page}&per_page=${perPage}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const status = data.status;
+                    const statusDiv = document.getElementById('collection-status');
+                    const contentDiv = document.getElementById('status-content');
+                    
+                    let statusColor = status.is_running ? '#d4edda' : '#f8d7da';
+                    let statusText = status.is_running ? '🟢 실행 중' : '🔴 중지됨';
+                    
+                    contentDiv.innerHTML = `
+                        <div style="background-color: ${statusColor}; padding: 10px; border-radius: 3px; margin-bottom: 10px;">
+                            <strong>상태:</strong> ${statusText}<br>
+                            <strong>노선 ID:</strong> ${status.route_id}<br>
+                            <strong>수집 간격:</strong> ${status.interval_minutes}분<br>
+                            <strong>오늘 수집 횟수:</strong> ${status.collection_count}회<br>
+                            <strong>마지막 데이터 수집:</strong> ${status.last_updated}<br>
+                            <strong>총 수집 날짜:</strong> ${status.total_dates}일
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <button onclick="loadDailyList()" style="background-color: #3498db; color: white; padding: 8px 16px; border: none; border-radius: 3px; cursor: pointer;">
+                                📅 일별 데이터 목록 보기
+                            </button>
+                            <button onclick="downloadAllFiles()" style="background-color: #9b59b6; color: white; padding: 8px 16px; border: none; border-radius: 3px; cursor: pointer;">
+                                💾 데이터베이스 파일 다운로드
+                            </button>
+                        </div>
+                        <div style="margin-top: 10px; padding: 8px; background-color: #fff3cd; border-radius: 3px; font-size: 12px;">
+                            ⏰ <strong>수집 제외 시간:</strong> 00:00 ~ 05:30 (새벽 시간대는 자동으로 건너뜀)
+                        </div>
+                    `;
+                    
+                    statusDiv.style.display = 'block';
+                } else {
+                    alert('❌ 상태 조회 실패: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ 오류 발생: ' + error.message);
+            }
+        }
+        
+        async function downloadFile(filename) {
+            try {
+                const response = await fetch(`/api/collection/download/?filename=${filename}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    alert('❌ 파일 다운로드 실패');
+                }
+            } catch (error) {
+                alert('❌ 오류 발생: ' + error.message);
+            }
+        }
+        
+        let dailyListPage = 1;
+        
+        async function loadDailyList(page = 1) {
+            try {
+                dailyListPage = page;
+                const response = await fetch(`/api/collection/daily-list/?page=${page}&per_page=20`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const dailyListDiv = document.getElementById('daily-list-section');
+                    const contentDiv = document.getElementById('daily-list-content');
+                    
+                    let listHtml = '';
+                    if (data.daily_list && data.daily_list.length > 0) {
+                        listHtml = `
+                            <div style="margin-bottom: 15px;">
+                                <strong>📊 총 ${data.pagination.total_dates}일간의 데이터</strong>
+                            </div>
+                        `;
+                        
+                        data.daily_list.forEach(item => {
+                            const successRate = item.total_collections > 0 ? 
+                                Math.round((item.successful_collections / item.total_collections) * 100) : 0;
+                            
+                            listHtml += `
+                                <div style="background-color: white; padding: 12px; margin: 8px 0; border-radius: 5px; border-left: 4px solid #3498db; cursor: pointer;" 
+                                     onclick="showDateData('${item.date}')">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <strong style="color: #2c3e50;">${item.date}</strong>
+                                            <div style="font-size: 12px; color: #7f8c8d; margin-top: 4px;">
+                                                마지막 수집: ${item.last_collection_time}
+                                            </div>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <div style="font-size: 14px; font-weight: bold; color: #27ae60;">
+                                                총 ${item.total_collections}회
+                                            </div>
+                                            <div style="font-size: 11px; color: #7f8c8d;">
+                                                성공: ${item.successful_collections} | 
+                                                오류: ${item.error_collections} | 
+                                                건너뜀: ${item.skipped_collections}
+                                            </div>
+                                            <div style="font-size: 11px; color: #27ae60;">
+                                                성공률: ${successRate}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        
+                        // 페이지네이션
+                        if (data.pagination.total_pages > 1) {
+                            listHtml += `
+                                <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 15px; padding: 10px; background-color: white; border-radius: 5px;">
+                                    <button onclick="loadDailyList(${data.pagination.current_page - 1})" 
+                                            ${!data.pagination.has_previous ? 'disabled' : ''} 
+                                            style="background-color: ${data.pagination.has_previous ? '#6c757d' : '#dee2e6'}; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: ${data.pagination.has_previous ? 'pointer' : 'not-allowed'}; font-size: 12px;">
+                                        ◀ 이전
+                                    </button>
+                                    <span style="font-size: 12px; color: #6c757d;">
+                                        ${data.pagination.current_page} / ${data.pagination.total_pages} 페이지
+                                    </span>
+                                    <button onclick="loadDailyList(${data.pagination.current_page + 1})" 
+                                            ${!data.pagination.has_next ? 'disabled' : ''} 
+                                            style="background-color: ${data.pagination.has_next ? '#6c757d' : '#dee2e6'}; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: ${data.pagination.has_next ? 'pointer' : 'not-allowed'}; font-size: 12px;">
+                                        다음 ▶
+                                    </button>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        listHtml = '<div style="text-align: center; color: #7f8c8d; padding: 20px;">수집된 데이터가 없습니다.</div>';
+                    }
+                    
+                    contentDiv.innerHTML = listHtml;
+                    dailyListDiv.style.display = 'block';
+                } else {
+                    alert('❌ 일별 목록 조회 실패: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ 오류 발생: ' + error.message);
+            }
+        }
+        
+        async function showDateData(date) {
+            try {
+                const response = await fetch(`/api/collection/date-data/?date=${date}&page=1&per_page=50`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    showPopup(date, data);
+                } else {
+                    alert('❌ 날짜별 데이터 조회 실패: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ 오류 발생: ' + error.message);
+            }
+        }
+        
+        function showPopup(date, data) {
+            // 팝업 HTML 생성
+            let popupHtml = `
+                <div id="popup-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center;">
+                    <div style="background-color: white; width: 90%; max-width: 900px; height: 90%; max-height: 90vh; border-radius: 10px; padding: 0; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: flex; flex-direction: column;">
+                        <div style="padding: 20px; border-bottom: 2px solid #3498db; background: linear-gradient(135deg, #3498db, #2980b9); text-align: center; flex-shrink: 0;">
+                            <h3 style="margin: 0; color: white; font-size: 18px;">📅 ${date} 수집 데이터 (총 ${data.pagination.total_collections}회)</h3>
+                        </div>
+                        
+                        <!-- 테이블 헤더를 팝업 제목 바로 밑에 표시 -->
+                        <div style="padding: 0; background-color: white; flex-shrink: 0;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed;">
+                                <thead>
+                                    <tr style="background: linear-gradient(135deg, #3498db, #2980b9); color: white;">
+                                        <th style="padding: 10px; border: none; font-weight: bold; width: 33.33%;">차량번호</th>
+                                        <th style="padding: 10px; border: none; font-weight: bold; width: 33.33%;">잔여좌석</th>
+                                        <th style="padding: 10px; border: none; font-weight: bold; width: 33.34%;">정류소순번 ↑</th>
+                                    </tr>
+                                </thead>
+                            </table>
+                        </div>
+                        
+                        <div id="popup-content" style="padding: 20px; flex: 1; overflow-y: auto;">
+            `;
+            
+            if (data.collections && data.collections.length > 0) {
+                data.collections.forEach(collection => {
+                    let statusBadge = '';
+                    if (collection.is_error) {
+                        statusBadge = '<span style="background-color: #e74c3c; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">오류</span>';
+                    } else if (collection.is_skipped) {
+                        statusBadge = '<span style="background-color: #f39c12; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">건너뜀</span>';
+                    } else {
+                        statusBadge = '<span style="background-color: #27ae60; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">성공</span>';
+                    }
+                    
+                    popupHtml += `
+                        <div style="background-color: #f8f9fa; margin: 10px 0; padding: 15px; border-radius: 5px; border-left: 4px solid #3498db;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <strong style="color: #2c3e50;">${collection.query_time}</strong>
+                                ${statusBadge}
+                            </div>
+                    `;
+                    
+                    if (collection.is_error) {
+                        popupHtml += `<div style="color: #e74c3c; font-size: 12px;">오류: ${collection.error_message}</div>`;
+                    } else if (collection.is_skipped) {
+                        popupHtml += `<div style="color: #f39c12; font-size: 12px;">건너뜀: ${collection.skip_reason}</div>`;
+                    } else if (collection.buses && collection.buses.length > 0) {
+                        // 버스 데이터를 테이블 형태로 표시 (헤더 없이, 컬럼 너비 고정)
+                        popupHtml += `
+                            <table style="width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; table-layout: fixed;">
+                                <tbody>
+                        `;
+                        
+                        collection.buses.forEach((bus, index) => {
+                            let seatColor = '#27ae60'; // 기본 녹색
+                            if (bus.remainSeatCnt <= 5) seatColor = '#e74c3c'; // 빨간색
+                            else if (bus.remainSeatCnt <= 10) seatColor = '#f39c12'; // 주황색
+                            
+                            const rowBgColor = index % 2 === 0 ? '#f8f9fa' : 'white';
+                            
+                            popupHtml += `
+                                <tr style="background-color: ${rowBgColor}; transition: background-color 0.2s ease;" onmouseover="this.style.backgroundColor='#e3f2fd'" onmouseout="this.style.backgroundColor='${rowBgColor}'">
+                                    <td style="padding: 8px; border: none; text-align: center; font-weight: 500; width: 33.33%;">${bus.plateNo}</td>
+                                    <td style="padding: 8px; border: none; text-align: center; color: ${seatColor}; font-weight: bold; font-size: 13px; width: 33.33%;">${bus.remainSeatCnt}석</td>
+                                    <td style="padding: 8px; border: none; text-align: center; color: #6c757d; width: 33.34%;">${bus.stationSeq}</td>
+                                </tr>
+                            `;
+                        });
+                        
+                        popupHtml += `
+                                </tbody>
+                            </table>
+                        `;
+                    }
+                    
+                    popupHtml += '</div>';
+                });
+            } else {
+                popupHtml += '<div style="text-align: center; color: #7f8c8d; padding: 20px;">해당 날짜에 수집된 데이터가 없습니다.</div>';
+            }
+            
+            popupHtml += `
+                        </div>
+                        <div style="padding: 15px 20px; background-color: #f8f9fa; border-top: 1px solid #dee2e6; text-align: center; flex-shrink: 0;">
+                            <button onclick="closePopup()" style="
+                                background: linear-gradient(135deg, #6c757d, #5a6268); 
+                                color: white; 
+                                border: none; 
+                                border-radius: 25px; 
+                                padding: 12px 40px; 
+                                cursor: pointer; 
+                                font-size: 14px; 
+                                font-weight: bold;
+                                transition: all 0.3s ease;
+                                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 10px rgba(0,0,0,0.1)'">닫기</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 팝업을 body에 추가
+            document.body.insertAdjacentHTML('beforeend', popupHtml);
+            
+            // 팝업 외부 클릭으로 닫기
+            document.getElementById('popup-overlay').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closePopup();
+                }
+            });
+        }
+        
+        function closePopup() {
+            const popup = document.getElementById('popup-overlay');
+            if (popup) {
+                popup.remove();
+            }
+        }
+        
+        // ESC 키로 팝업 닫기
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closePopup();
+            }
+        });
+        
+        async function downloadAllFiles() {
+            try {
+                if (!confirm('데이터베이스 파일을 다운로드하시겠습니까?\n\n이 파일에는 모든 수집된 버스 데이터가 포함되어 있습니다.')) {
+                    return;
+                }
+                
+                // 로딩 표시
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = '다운로드 중...';
+                button.disabled = true;
+                
+                const response = await fetch('/api/collection/download-all/');
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    
+                    // 파일명을 응답 헤더에서 가져오기
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'bus_data_db.sqlite3';
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                        if (filenameMatch) {
+                            filename = filenameMatch[1];
+                        }
+                    }
+                    
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    alert('✅ 데이터베이스 파일 다운로드가 완료되었습니다!');
+                } else {
+                    const errorData = await response.json();
+                    alert('❌ 데이터베이스 파일 다운로드 실패: ' + errorData.error);
+                }
+            } catch (error) {
+                alert('❌ 오류 발생: ' + error.message);
+            } finally {
+                // 로딩 상태 해제
+                const button = event.target;
+                button.textContent = '💾 데이터베이스 파일 다운로드';
+                button.disabled = false;
+            }
+        }
+        
+        // 페이지 로드 시 상태 확인
+        window.addEventListener('load', function() {
+            getStatus();
+        });
+        
+        // 자동 새로고침 (30초마다)
+        setInterval(function() {
+            getStatus(currentPage);
+        }, 30000);
+        
+
+    </script>
+</body>
+</html>
