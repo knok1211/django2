@@ -17,9 +17,10 @@ class BusDataCollector:
     버스 데이터를 자동으로 수집하고 데이터베이스에 저장하는 클래스
     """
     
-    def __init__(self, route_id="234001730", interval_minutes=2):
+    def __init__(self, route_id="234001730", interval_seconds=90):
         self.route_id = route_id
-        self.interval_seconds = interval_minutes * 60
+        self.interval_seconds = interval_seconds
+        self.night_interval_seconds = 30 * 60  # 새벽 시간 간격: 30분
         self.is_running = False
         self.thread = None
     
@@ -241,6 +242,20 @@ class BusDataCollector:
         
         return collection_id
     
+    def get_current_interval(self):
+        """
+        현재 시간에 따른 수집 간격 반환
+        """
+        current_time = datetime.now().time()
+        skip_start = dt_time(0, 0)  # 00:00
+        skip_end = dt_time(5, 30)   # 05:30
+        
+        # 새벽 시간대인지 확인
+        if skip_start <= current_time <= skip_end:
+            return self.night_interval_seconds
+        else:
+            return self.interval_seconds
+    
     def start_collection(self):
         """
         자동 수집 시작
@@ -252,13 +267,43 @@ class BusDataCollector:
         self.is_running = True
         
         def collection_loop():
+            next_collection_time = time.time()
+            
             while self.is_running:
-                self.collect_and_save()
-                time.sleep(self.interval_seconds)
+                current_time = time.time()
+                
+                if current_time >= next_collection_time:
+                    start_time = time.time()
+                    self.collect_and_save()
+                    end_time = time.time()
+                    
+                    # 현재 시간에 따른 간격 결정
+                    current_interval = self.get_current_interval()
+                    next_collection_time += current_interval
+                    
+                    # 만약 처리 시간이 너무 길어서 다음 수집 시간을 놓쳤다면, 즉시 다음 수집 시간으로 설정
+                    if next_collection_time <= current_time:
+                        next_collection_time = current_time + current_interval
+                    
+                    processing_time = end_time - start_time
+                    wait_time = next_collection_time - current_time
+                    
+                    # 간격 표시
+                    if current_interval >= 60:
+                        interval_display = f"{current_interval//60}분"
+                        if current_interval % 60 > 0:
+                            interval_display += f" {current_interval%60}초"
+                    else:
+                        interval_display = f"{current_interval}초"
+                    
+                    print(f"  - 처리 시간: {processing_time:.2f}초, 다음 수집까지: {wait_time:.1f}초 (간격: {interval_display})")
+                
+                # 0.1초마다 체크 (CPU 사용량 최소화)
+                time.sleep(0.1)
         
         self.thread = threading.Thread(target=collection_loop, daemon=True)
         self.thread.start()
-        print(f"자동 데이터 수집 시작 - 노선: {self.route_id}, 간격: {self.interval_seconds//60}분")
+        print(f"자동 데이터 수집 시작 - 노선: {self.route_id}, 일반 간격: {self.interval_seconds}초, 새벽 간격: {self.night_interval_seconds//60}분")
     
     def stop_collection(self):
         """
@@ -273,12 +318,25 @@ class BusDataCollector:
         """
         수집 상태 반환
         """
+        current_interval = self.get_current_interval()
+        
+        # 현재 간격 표시 형식
+        if current_interval >= 60:
+            interval_display = f"{current_interval//60}분"
+            if current_interval % 60 > 0:
+                interval_display += f" {current_interval%60}초"
+        else:
+            interval_display = f"{current_interval}초"
+        
         return {
             'is_running': self.is_running,
             'route_id': self.route_id,
-            'interval_minutes': self.interval_seconds // 60
+            'interval_seconds': current_interval,
+            'interval_display': interval_display,
+            'normal_interval': self.interval_seconds,
+            'night_interval': self.night_interval_seconds
         }
 
 
 # 전역 수집기 인스턴스
-bus_collector = BusDataCollector(route_id="234001730", interval_minutes=2)
+bus_collector = BusDataCollector(route_id="234001730", interval_seconds=90)

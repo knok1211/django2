@@ -93,7 +93,7 @@ def get_collection_status(request):
         
         status['collection_count'] = today_collections.count()
         status['total_dates'] = all_dates.count()
-        status['last_updated'] = latest_collection.query_time.isoformat() if latest_collection else 'N/A'
+        status['last_updated'] = latest_collection.query_time.strftime('%Y-%m-%d %H:%M:%S') if latest_collection else 'N/A'
         
         # 페이지네이션 파라미터
         page = int(request.GET.get('page', 1))
