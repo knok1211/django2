@@ -26,7 +26,13 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-1uasu+wjp=ehjw_9)$iko
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'svc.sel3.cloudtype.app,*.cloudtype.app,localhost,127.0.0.1,0.0.0.0').split(',')
+# ALLOWED_HOSTS 설정 개선
+allowed_hosts_str = os.environ.get('ALLOWED_HOSTS', 'svc.sel3.cloudtype.app,localhost,127.0.0.1,0.0.0.0')
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_str.split(',') if host.strip()]
+
+# 와일드카드 도메인 추가
+if not any('cloudtype.app' in host for host in ALLOWED_HOSTS):
+    ALLOWED_HOSTS.extend(['*.cloudtype.app', '.cloudtype.app'])
 
 
 # Application definition
@@ -75,8 +81,16 @@ WSGI_APPLICATION = 'project1.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # CSRF 설정
-csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', 'https://svc.sel3.cloudtype.app:31658,https://svc.sel3.cloudtype.app,https://*.cloudtype.app').split(',')
-CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins]
+csrf_origins_str = os.environ.get('CSRF_TRUSTED_ORIGINS', 'https://svc.sel3.cloudtype.app:31658,https://svc.sel3.cloudtype.app,http://svc.sel3.cloudtype.app:31658,http://svc.sel3.cloudtype.app')
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_str.split(',') if origin.strip()]
+
+# 개발 환경에서 CSRF 검사 완화
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS.extend([
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+        'http://0.0.0.0:8000'
+    ])
 
 DATABASES = {
     'default': {
@@ -120,8 +134,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# 추가 정적 파일 디렉토리
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+
+# 정적 파일 파인더
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]
 
 # CloudType 배포 설정
 PORT = int(os.environ.get('PORT', 8000))

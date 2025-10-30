@@ -16,8 +16,21 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+from django.http import HttpResponse
+from django.views.generic import RedirectView
+
+def favicon_view(request):
+    return HttpResponse(status=204)  # No Content
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('bus_info.urls')),
+    path('favicon.ico', favicon_view, name='favicon'),
 ]
+
+# 정적 파일 서빙 (개발 환경에서만)
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0] if settings.STATICFILES_DIRS else '')
