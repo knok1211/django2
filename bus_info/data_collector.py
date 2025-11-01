@@ -20,34 +20,28 @@ class BusDataCollector:
     def __init__(self, route_id="234001730", interval_seconds=90):
         self.route_id = route_id
         self.interval_seconds = interval_seconds
-        self.night_interval_seconds = 30 * 60  # 새벽 시간 간격: 30분
         self.is_running = False
         self.thread = None
     
-    def is_skip_time(self, query_time_str):
+    def is_skip_time(self, query_time_str=None):
         """
-        쿼리 시간이 00:00 ~ 05:30 범위인지 확인
+        현재 시간이 00:00 ~ 05:30 범위인지 확인 (UTC+9 기준)
         """
         try:
-            if query_time_str == 'N/A':
-                return False
-            
-            # query_time 형식: "2024-01-01 12:00:00" 또는 "2024-01-01 12:00:00.123"
-            # 밀리초 부분이 있으면 제거
-            if '.' in query_time_str:
-                query_time_str = query_time_str.split('.')[0]
-            
-            query_datetime = datetime.strptime(query_time_str, '%Y-%m-%d %H:%M:%S')
-            query_time = query_datetime.time()
+            from datetime import timedelta
+            # UTC+9 시간 계산
+            utc_now = datetime.utcnow()
+            kst_now = utc_now + timedelta(hours=9)
+            current_time = kst_now.time()
             
             # 00:00 ~ 05:30 범위 확인
             skip_start = dt_time(0, 0)  # 00:00
             skip_end = dt_time(5, 30)   # 05:30
             
-            return skip_start <= query_time <= skip_end
+            return skip_start <= current_time <= skip_end
             
         except Exception as e:
-            print(f"시간 파싱 오류: {e}")
+            print(f"시간 확인 오류: {e}")
             return False
     
 
@@ -57,6 +51,20 @@ class BusDataCollector:
         현재 시점의 버스 데이터를 수집
         """
         try:
+            # 00:00 ~ 05:30 시간대 체크 (UTC+9 기준) - API 요청 전에 먼저 확인
+            if self.is_skip_time():
+                # 서버 시간으로 대체
+                from datetime import timedelta
+                utc_now = datetime.utcnow()
+                kst_now = utc_now + timedelta(hours=9)
+                server_time = kst_now.strftime('%Y-%m-%d %H:%M:%S')
+                
+                return {
+                    'query_time': server_time,
+                    'skipped': True,
+                    'skip_reason': '00:00 ~ 05:30 시간대는 수집하지 않습니다. (KST 기준)'
+                }
+            
             # 서비스키 디코딩
             decoded_service_key = urllib.parse.unquote(GBIS_SERVICE_KEY)
             
@@ -83,20 +91,18 @@ class BusDataCollector:
             result_message = msg_header.get('resultMessage', '')
             query_time = msg_header.get('queryTime', 'N/A')
             
-            # 00:00 ~ 05:30 시간대 체크
-            if self.is_skip_time(query_time):
-                return {
-                    'query_time': query_time,
-                    'skipped': True,
-                    'skip_reason': '00:00 ~ 05:30 시간대는 수집하지 않습니다.'
-                }
-            
             if result_code == 0:
                 bus_list = msg_body.get('busLocationList', [])
                 
+                # 서버 시간으로 대체
+                from datetime import timedelta
+                utc_now = datetime.utcnow()
+                kst_now = utc_now + timedelta(hours=9)
+                server_time = kst_now.strftime('%Y-%m-%d %H:%M:%S')
+                
                 # 수집된 데이터 구조화
                 collected_data = {
-                    'query_time': query_time,
+                    'query_time': server_time,
                     'buses': []
                 }
                 
@@ -122,8 +128,14 @@ class BusDataCollector:
                 
                 return collected_data
             else:
+                # 서버 시간으로 대체
+                from datetime import timedelta
+                utc_now = datetime.utcnow()
+                kst_now = utc_now + timedelta(hours=9)
+                server_time = kst_now.strftime('%Y-%m-%d %H:%M:%S')
+                
                 return {
-                    'query_time': query_time,
+                    'query_time': server_time,
                     'route_id': self.route_id,
                     'result_code': result_code,
                     'result_message': result_message,
@@ -131,8 +143,14 @@ class BusDataCollector:
                 }
                 
         except Exception as e:
+            # 서버 시간으로 대체
+            from datetime import timedelta
+            utc_now = datetime.utcnow()
+            kst_now = utc_now + timedelta(hours=9)
+            server_time = kst_now.strftime('%Y-%m-%d %H:%M:%S')
+            
             return {
-                'query_time': 'N/A',
+                'query_time': server_time,
                 'route_id': self.route_id,
                 'error': True,
                 'error_message': str(e)
@@ -192,23 +210,19 @@ class BusDataCollector:
             print(f"데이터베이스 저장 오류: {e}")
             return None
     
-    def get_log_time_from_query_time(self, query_time_str):
+    def get_log_time_kst(self):
         """
-        쿼리 시간을 로그용 시간 형식으로 변환
+        현재 시간을 KST(UTC+9) 기준으로 로그용 형식으로 반환
         """
         try:
-            if query_time_str == 'N/A':
-                return '[N/A]'
-            
-            # query_time 형식: "2024-01-01 12:00:00" 또는 "2024-01-01 12:00:00.123"
-            # 밀리초 부분이 있으면 제거
-            if '.' in query_time_str:
-                query_time_str = query_time_str.split('.')[0]
-            
-            return f"[{query_time_str}]"
+            from datetime import timedelta
+            # UTC+9 시간 계산
+            utc_now = datetime.utcnow()
+            kst_now = utc_now + timedelta(hours=9)
+            return f"[{kst_now.strftime('%Y-%m-%d %H:%M:%S')} KST]"
             
         except Exception as e:
-            return f"[{query_time_str}]"
+            return f"[시간 오류: {e}]"
 
     def collect_and_save(self):
         """
@@ -216,14 +230,14 @@ class BusDataCollector:
         """
         data = self.collect_bus_data()
         query_time = data.get('query_time', 'N/A')
-        log_time = self.get_log_time_from_query_time(query_time)
+        log_time = self.get_log_time_kst()
         
         print(f"{log_time} 버스 데이터 수집 시작 - 노선: {self.route_id}")
         
         # 수집 건너뛰기 체크
         if data.get('skipped'):
             print(f"{log_time} 수집 건너뜀: {data.get('skip_reason')}")
-            print(f"  - 쿼리 시간: {query_time}")
+            print(f"  - API 쿼리 시간: {query_time}")
             # 건너뛴 경우에도 데이터베이스에 기록
             collection_id = self.save_to_database(data)
             return collection_id
@@ -233,7 +247,7 @@ class BusDataCollector:
         if collection_id:
             print(f"{log_time} 데이터 저장 완료: Collection ID {collection_id}")
             if 'buses' in data:
-                print(f"  - 쿼리 시간: {query_time}")
+                print(f"  - API 쿼리 시간: {query_time}")
                 print(f"  - 수집된 버스 수: {len(data['buses'])}대")
                 for bus in data['buses']:
                     print(f"    🚌 {bus['plateNo']} - 잔여좌석: {bus['remainSeatCnt']}개, 정류소순번: {bus['stationSeq']}")
@@ -244,17 +258,9 @@ class BusDataCollector:
     
     def get_current_interval(self):
         """
-        현재 시간에 따른 수집 간격 반환
+        수집 간격 반환
         """
-        current_time = datetime.now().time()
-        skip_start = dt_time(0, 0)  # 00:00
-        skip_end = dt_time(5, 30)   # 05:30
-        
-        # 새벽 시간대인지 확인
-        if skip_start <= current_time <= skip_end:
-            return self.night_interval_seconds
-        else:
-            return self.interval_seconds
+        return self.interval_seconds
     
     def start_collection(self):
         """
@@ -288,22 +294,14 @@ class BusDataCollector:
                     processing_time = end_time - start_time
                     wait_time = next_collection_time - current_time
                     
-                    # 간격 표시
-                    if current_interval >= 60:
-                        interval_display = f"{current_interval//60}분"
-                        if current_interval % 60 > 0:
-                            interval_display += f" {current_interval%60}초"
-                    else:
-                        interval_display = f"{current_interval}초"
-                    
-                    print(f"  - 처리 시간: {processing_time:.2f}초, 다음 수집까지: {wait_time:.1f}초 (간격: {interval_display})")
+                    print(f"  - 처리 시간: {processing_time:.2f}초, 다음 수집까지: {wait_time:.1f}초")
                 
                 # 0.1초마다 체크 (CPU 사용량 최소화)
                 time.sleep(0.1)
         
         self.thread = threading.Thread(target=collection_loop, daemon=True)
         self.thread.start()
-        print(f"자동 데이터 수집 시작 - 노선: {self.route_id}, 일반 간격: {self.interval_seconds}초, 새벽 간격: {self.night_interval_seconds//60}분")
+        print(f"자동 데이터 수집 시작 - 노선: {self.route_id}, 간격: {self.interval_seconds}초")
     
     def stop_collection(self):
         """
@@ -318,23 +316,10 @@ class BusDataCollector:
         """
         수집 상태 반환
         """
-        current_interval = self.get_current_interval()
-        
-        # 현재 간격 표시 형식
-        if current_interval >= 60:
-            interval_display = f"{current_interval//60}분"
-            if current_interval % 60 > 0:
-                interval_display += f" {current_interval%60}초"
-        else:
-            interval_display = f"{current_interval}초"
-        
         return {
             'is_running': self.is_running,
             'route_id': self.route_id,
-            'interval_seconds': current_interval,
-            'interval_display': interval_display,
-            'normal_interval': self.interval_seconds,
-            'night_interval': self.night_interval_seconds
+            'interval_seconds': self.interval_seconds
         }
 
 

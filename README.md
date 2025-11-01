@@ -12,3 +12,8 @@
 
 - [GBIS 공유서비스](https://www.gbis.go.kr/gbis2014/publicService.action?cmd=mBusLocation)
 - [공공데이터포털](https://data.go.kr)
+
+## 업데이트
+
+11/01
+UTC+9 반영
