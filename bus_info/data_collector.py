@@ -92,7 +92,15 @@ class BusDataCollector:
             query_time = msg_header.get('queryTime', 'N/A')
             
             if result_code == 0:
-                bus_list = msg_body.get('busLocationList', [])
+                bus_list_raw = msg_body.get('busLocationList', [])
+                
+                # 버스가 1대일 때 단일 객체로 반환되는 경우 리스트로 변환
+                if isinstance(bus_list_raw, dict):
+                    bus_list = [bus_list_raw]
+                elif isinstance(bus_list_raw, list):
+                    bus_list = bus_list_raw
+                else:
+                    bus_list = []
                 
                 # 서버 시간으로 대체
                 from datetime import timedelta
@@ -108,12 +116,13 @@ class BusDataCollector:
                 
                 # 각 버스 데이터 처리 - 요청된 3개 필드만
                 for bus in bus_list:
-                    bus_data = {
-                        'plateNo': bus.get('plateNo', 'N/A'),
-                        'remainSeatCnt': bus.get('remainSeatCnt', -1),
-                        'stationSeq': bus.get('stationSeq', 'N/A')
-                    }
-                    collected_data['buses'].append(bus_data)
+                    if isinstance(bus, dict):  # 버스 데이터가 딕셔너리인지 확인
+                        bus_data = {
+                            'plateNo': bus.get('plateNo', 'N/A'),
+                            'remainSeatCnt': bus.get('remainSeatCnt', -1),
+                            'stationSeq': bus.get('stationSeq', 'N/A')
+                        }
+                        collected_data['buses'].append(bus_data)
                 
                 # 버스 데이터를 정류소 순번 순으로 정렬
                 def sort_key(bus):

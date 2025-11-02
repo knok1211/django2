@@ -411,11 +411,14 @@
 
             if (data.collections && data.collections.length > 0) {
                 data.collections.forEach(collection => {
+                    // 건너뜀 항목은 표시하지 않음
+                    if (collection.is_skipped) {
+                        return;
+                    }
+                    
                     let statusBadge = '';
                     if (collection.is_error) {
                         statusBadge = '<span style="background-color: #e74c3c; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">오류</span>';
-                    } else if (collection.is_skipped) {
-                        statusBadge = '<span style="background-color: #f39c12; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">건너뜀</span>';
                     } else {
                         statusBadge = '<span style="background-color: #27ae60; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">성공</span>';
                     }
@@ -429,9 +432,12 @@
                     `;
 
                     if (collection.is_error) {
-                        popupHtml += `<div style="color: #e74c3c; font-size: 12px;">오류: ${collection.error_message}</div>`;
-                    } else if (collection.is_skipped) {
-                        popupHtml += `<div style="color: #f39c12; font-size: 12px;">건너뜀: ${collection.skip_reason}</div>`;
+                        // 특정 오류 메시지를 사용자 친화적으로 변경
+                        let errorMsg = collection.error_message;
+                        if (errorMsg && errorMsg.includes("'str' object has no attribute 'get'")) {
+                            errorMsg = "API 응답 형식 오류 (버스 1대 처리 문제)";
+                        }
+                        popupHtml += `<div style="color: #e74c3c; font-size: 12px;">오류: ${errorMsg}</div>`;
                     } else if (collection.buses && collection.buses.length > 0) {
                         // 버스 데이터를 테이블 형태로 표시 (헤더 없이, 컬럼 너비 고정)
                         popupHtml += `
