@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>버스 데이터 분석</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        .nav-button {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #3498db;
+            background-color: white;
+            color: #3498db;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .nav-button:hover {
+            background-color: #3498db;
+            color: white;
+        }
+        .nav-button.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .upload-area {
+            border: 3px dashed #3498db;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-area:hover {
+            background-color: #ecf0f1;
+            border-color: #2980b9;
+        }
+        .upload-area.dragover {
+            background-color: #d4edda;
+            border-color: #27ae60;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .date-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .date-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-weight: bold;
+            color: #34495e;
+            margin-bottom: 8px;
+        }
+        input[type="date"] {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        .info-box {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .info-box.warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .info-value {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 버스 데이터 분석</h1>
+        <p class="subtitle">SQLite 데이터베이스를 업로드하여 버스 운행 데이터를 분석합니다</p>
+        
+        <div class="nav-buttons">
+            <button class="nav-button" onclick="location.href='/'">🚌 데이터 수집</button>
+            <button class="nav-button active">📊 데이터 분석</button>
+        </div>
+
+        <!-- 1단계: 파일 업로드 -->
+        <div class="section">
+            <div class="section-title">
+                <span>1️⃣</span>
+                <span>데이터베이스 파일 업로드</span>
+            </div>
+            
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📁</div>
+                <div style="font-size: 18px; font-weight: bold; color: #2c3e50; margin-bottom: 10px;">
+                    클릭하거나 파일을 드래그하여 업로드
+                </div>
+                <div style="color: #7f8c8d; font-size: 14px;">
+                    SQLite 데이터베이스 파일 (.sqlite3)
+                </div>
+            </div>
+            
+            <input type="file" id="fileInput" accept=".sqlite3" onchange="handleFileSelect(event)">
+            
+            <div id="uploadInfo" class="info-box hidden">
+                <div style="font-weight: bold; margin-bottom: 10px; color: #27ae60;">✅ 파일 업로드 완료</div>
+                <div class="info-item">
+                    <span class="info-label">파일명:</span>
+                    <span id="fileName"></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">데이터 기간:</span>
+                    <span id="dateRange"></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">총 수집 날짜:</span>
+                    <span class="info-value" id="totalDates"></span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">총 수집 횟수:</span>
+                    <span class="info-value" id="totalCollections"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2단계: 분석 기간 선택 -->
+        <div class="section" id="dateSection" style="display: none;">
+            <div class="section-title">
+                <span>2️⃣</span>
+                <span>분석 기간 선택</span>
+            </div>
+            
+            <div class="date-selector">
+                <div class="date-group">
+                    <label for="startDate">시작 날짜</label>
+                    <input type="date" id="startDate" onchange="validateDates()">
+                </div>
+                <div class="date-group">
+                    <label for="endDate">종료 날짜</label>
+                    <input type="date" id="endDate" onchange="validateDates()">
+                </div>
+            </div>
+            
+            <div id="dateWarning" class="info-box warning hidden" style="margin-top: 15px;">
+                ⚠️ 종료 날짜는 시작 날짜보다 이후여야 합니다.
+            </div>
+            
+            <!-- 분석 타입 선택 -->
+            <div style="margin-top: 25px;">
+                <label style="font-weight: bold; color: #34495e; margin-bottom: 10px; display: block;">분석 타입 선택</label>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <label id="analysisTypeAll" style="display: flex; align-items: center; cursor: pointer; padding: 10px 15px; border: 2px solid #3498db; border-radius: 5px; background-color: #3498db; color: white; transition: all 0.3s;">
+                        <input type="radio" name="analysisType" value="all" checked onchange="onAnalysisTypeChange()" style="margin-right: 8px; cursor: pointer;">
+                        <span>1. 전체 분석</span>
+                    </label>
+                    <label id="analysisTypeWeekday" style="display: flex; align-items: center; cursor: pointer; padding: 10px 15px; border: 2px solid #3498db; border-radius: 5px; background-color: white; color: #3498db; transition: all 0.3s;">
+                        <input type="radio" name="analysisType" value="weekday" onchange="onAnalysisTypeChange()" style="margin-right: 8px; cursor: pointer;">
+                        <span>2. 요일별 분석</span>
+                    </label>
+                    <label id="analysisTypeDaily" style="display: flex; align-items: center; cursor: pointer; padding: 10px 15px; border: 2px solid #3498db; border-radius: 5px; background-color: white; color: #3498db; transition: all 0.3s;">
+                        <input type="radio" name="analysisType" value="daily" onchange="onAnalysisTypeChange()" style="margin-right: 8px; cursor: pointer;">
+                        <span>3. 일자별 분석</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3단계: 분석 시작 -->
+        <div class="section" id="analysisSection" style="display: none;">
+            <div class="section-title">
+                <span>3️⃣</span>
+                <span>분석 시작</span>
+            </div>
+            
+            <!-- 전체 분석 버튼 -->
+            <div id="allAnalysisButtons" style="display: none;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                    <button onclick="showAverageAnalysis(null, false)" style="background-color: #3498db; color: white; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;">
+                        📊 평일 평균 분석
+                    </button>
+                    <button onclick="showAverageAnalysis(null, true)" style="background-color: #3498db; color: white; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s;">
+                        📊 주말 평균 분석
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 요일별 분석 버튼 -->
+            <div id="weekdayAnalysisButtons" style="display: none;">
+                <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 10px;">
+                    <button onclick="showAverageAnalysis(0)" style="background-color: #3498db; color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">월요일</button>
+                    <button onclick="showAverageAnalysis(1)" style="background-color: #3498db; color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">화요일</button>
+                    <button onclick="showAverageAnalysis(2)" style="background-color: #3498db; color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">수요일</button>
+                    <button onclick="showAverageAnalysis(3)" style="background-color: #3498db; color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">목요일</button>
+                    <button onclick="showAverageAnalysis(4)" style="background-color: #3498db; color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">금요일</button>
+                    <button onclick="showAverageAnalysis(5)" style="background-color: #3498db; color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">토요일</button>
+                    <button onclick="showAverageAnalysis(6)" style="background-color: #3498db; color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s;">일요일</button>
+                </div>
+            </div>
+            
+            <!-- 일자별 분석 버튼 -->
+            <div id="dailyAnalysisButtons" style="display: none;">
+                <button id="startAnalysisBtn" onclick="startAnalysis()" disabled>
+                    🔍 분석 시작
+                </button>
+            </div>
+        </div>
+
+        <!-- 4단계: 일자별 목록 -->
+        <div class="section" id="dailyListSection" style="display: none;">
+            <div class="section-title">
+                <span>4️⃣</span>
+                <span>일자별 분석 결과</span>
+            </div>
+            
+            <div id="dailyListContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let uploadedData = null;
+
+        // 드래그 앤 드롭 이벤트
+        const uploadArea = document.getElementById('uploadArea');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        async function handleFile(file) {
+            if (!file.name.endsWith('.sqlite3')) {
+                alert('❌ SQLite 데이터베이스 파일(.sqlite3)만 업로드 가능합니다.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('database', file);
+
+            try {
+                // 로딩 표시
+                uploadArea.innerHTML = '<div style="font-size: 18px; color: #3498db;">📤 업로드 중...</div>';
+
+                const response = await fetch('/api/analysis/upload/', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    uploadedData = data.data;
+                    
+                    // 업로드 정보 표시
+                    document.getElementById('fileName').textContent = file.name;
+                    document.getElementById('dateRange').textContent = `${data.data.min_date} ~ ${data.data.max_date}`;
+                    document.getElementById('totalDates').textContent = `${data.data.total_dates}일`;
+                    document.getElementById('totalCollections').textContent = `${data.data.total_collections}회`;
+                    document.getElementById('uploadInfo').classList.remove('hidden');
+                    
+                    // 날짜 선택 섹션 표시
+                    document.getElementById('dateSection').style.display = 'block';
+                    document.getElementById('analysisSection').style.display = 'block';
+                    
+                    // 날짜 입력 필드에 기본값 설정
+                    document.getElementById('startDate').value = data.data.min_date;
+                    document.getElementById('endDate').value = data.data.max_date;
+                    document.getElementById('startDate').min = data.data.min_date;
+                    document.getElementById('startDate').max = data.data.max_date;
+                    document.getElementById('endDate').min = data.data.min_date;
+                    document.getElementById('endDate').max = data.data.max_date;
+                    
+                    validateDates();
+                    onAnalysisTypeChange(); // 분석 타입에 따라 버튼 표시
+                    
+                    // 업로드 영역 복원
+                    uploadArea.innerHTML = `
+                        <div class="upload-icon">✅</div>
+                        <div style="font-size: 18px; font-weight: bold; color: #27ae60; margin-bottom: 10px;">
+                            업로드 완료!
+                        </div>
+                        <div style="color: #7f8c8d; font-size: 14px;">
+                            다른 파일을 업로드하려면 클릭하세요
+                        </div>
+                    `;
+                } else {
+                    alert('❌ ' + data.error);
+                    resetUploadArea();
+                }
+            } catch (error) {
+                alert('❌ 업로드 중 오류 발생: ' + error.message);
+                resetUploadArea();
+            }
+        }
+
+        function resetUploadArea() {
+            uploadArea.innerHTML = `
+                <div class="upload-icon">📁</div>
+                <div style="font-size: 18px; font-weight: bold; color: #2c3e50; margin-bottom: 10px;">
+                    클릭하거나 파일을 드래그하여 업로드
+                </div>
+                <div style="color: #7f8c8d; font-size: 14px;">
+                    SQLite 데이터베이스 파일 (.sqlite3)
+                </div>
+            `;
+        }
+
+        function validateDates() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const warning = document.getElementById('dateWarning');
+            const startBtn = document.getElementById('startAnalysisBtn');
+
+            if (startDate && endDate) {
+                if (new Date(startDate) > new Date(endDate)) {
+                    warning.classList.remove('hidden');
+                    if (startBtn) startBtn.disabled = true;
+                } else {
+                    warning.classList.add('hidden');
+                    if (startBtn) startBtn.disabled = false;
+                }
+            } else {
+                if (startBtn) startBtn.disabled = true;
+            }
+        }
+
+        function onAnalysisTypeChange() {
+            const analysisType = document.querySelector('input[name="analysisType"]:checked').value;
+            const allButtons = document.getElementById('allAnalysisButtons');
+            const weekdayButtons = document.getElementById('weekdayAnalysisButtons');
+            const dailyButtons = document.getElementById('dailyAnalysisButtons');
+            
+            // 라디오 버튼 스타일 업데이트
+            const allLabel = document.getElementById('analysisTypeAll');
+            const weekdayLabel = document.getElementById('analysisTypeWeekday');
+            const dailyLabel = document.getElementById('analysisTypeDaily');
+            
+            // 모든 라벨 스타일 초기화
+            allLabel.style.backgroundColor = 'white';
+            allLabel.style.color = '#3498db';
+            weekdayLabel.style.backgroundColor = 'white';
+            weekdayLabel.style.color = '#3498db';
+            dailyLabel.style.backgroundColor = 'white';
+            dailyLabel.style.color = '#3498db';
+            
+            // 모든 버튼 숨기기
+            allButtons.style.display = 'none';
+            weekdayButtons.style.display = 'none';
+            dailyButtons.style.display = 'none';
+            
+            // 선택된 타입에 따라 버튼 표시 및 스타일 업데이트
+            if (analysisType === 'all') {
+                allButtons.style.display = 'block';
+                allLabel.style.backgroundColor = '#3498db';
+                allLabel.style.color = 'white';
+            } else if (analysisType === 'weekday') {
+                weekdayButtons.style.display = 'block';
+                weekdayLabel.style.backgroundColor = '#3498db';
+                weekdayLabel.style.color = 'white';
+            } else if (analysisType === 'daily') {
+                dailyButtons.style.display = 'block';
+                dailyLabel.style.backgroundColor = '#3498db';
+                dailyLabel.style.color = 'white';
+            }
+        }
+
+        async function startAnalysis() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!startDate || !endDate) {
+                alert('❌ 시작 날짜와 종료 날짜를 모두 선택해주세요.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/analysis/start/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        start_date: startDate,
+                        end_date: endDate
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayDailyList(data.data.daily_list);
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ 분석 시작 중 오류 발생: ' + error.message);
+            }
+        }
+
+        function displayDailyList(dailyList) {
+            const section = document.getElementById('dailyListSection');
+            const content = document.getElementById('dailyListContent');
+            
+            if (!dailyList || dailyList.length === 0) {
+                content.innerHTML = '<div style="text-align: center; color: #7f8c8d; padding: 20px;">해당 기간에 데이터가 없습니다.</div>';
+                section.style.display = 'block';
+                return;
+            }
+            
+            let html = '';
+            dailyList.forEach(item => {
+                html += `
+                    <div style="background-color: white; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #3498db; cursor: pointer; transition: all 0.3s;" 
+                         onclick="showAnalysisPopup('${item.date}')"
+                         onmouseover="this.style.backgroundColor='#ecf0f1'"
+                         onmouseout="this.style.backgroundColor='white'">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="color: #2c3e50; font-size: 16px;">${item.date}</strong>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 14px; color: #27ae60; font-weight: bold;">
+                                    성공: ${item.successful_collections}회
+                                </div>
+                                <div style="font-size: 12px; color: #7f8c8d;">
+                                    총 ${item.total_collections}회
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            content.innerHTML = html;
+            section.style.display = 'block';
+            
+            // 스크롤 이동
+            section.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function showAnalysisPopup(date) {
+            try {
+                // 로딩 표시
+                showLoadingOverlay();
+                
+                const response = await fetch(`/api/analysis/data/?date=${date}`);
+                const data = await response.json();
+                
+                hideLoadingOverlay();
+                
+                if (data.success) {
+                    displayAnalysisPopup(date, data.data);
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            } catch (error) {
+                hideLoadingOverlay();
+                alert('❌ 데이터 조회 중 오류 발생: ' + error.message);
+            }
+        }
+
+        async function showAverageAnalysis(weekday, isWeekendOnly) {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!startDate || !endDate) {
+                alert('❌ 시작 날짜와 종료 날짜를 모두 선택해주세요.');
+                return;
+            }
+
+            if (new Date(startDate) > new Date(endDate)) {
+                alert('❌ 종료 날짜는 시작 날짜보다 이후여야 합니다.');
+                return;
+            }
+
+            try {
+                // 로딩 표시
+                showLoadingOverlay();
+                
+                let url = `/api/analysis/average/?start_date=${startDate}&end_date=${endDate}`;
+                if (weekday !== null) {
+                    url += `&weekday=${weekday}`;
+                } else if (isWeekendOnly !== null && isWeekendOnly !== undefined) {
+                    url += `&is_weekend_only=${isWeekendOnly}`;
+                }
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                hideLoadingOverlay();
+                
+                if (data.success) {
+                    displayAverageAnalysisPopup(data.data);
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            } catch (error) {
+                hideLoadingOverlay();
+                alert('❌ 데이터 조회 중 오류 발생: ' + error.message);
+            }
+        }
+
+        function displayAverageAnalysisPopup(analysisData) {
+            const buses = analysisData.buses;
+            const stations = analysisData.stations;
+            const passengers = analysisData.passengers;  // 승객 수
+            const changes = analysisData.changes;  // 변화량
+            const title = analysisData.title;
+            const startDate = analysisData.start_date;
+            const endDate = analysisData.end_date;
+            
+            // 테이블 생성
+            let tableHtml = `
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                    <thead>
+                        <tr style="background: linear-gradient(135deg, #3498db, #2980b9); color: white;">
+                            <th style="padding: 8px; border: 1px solid #ddd; position: sticky; left: 0; background: linear-gradient(135deg, #3498db, #2980b9); z-index: 10; min-width: 200px;">최근 정차 정류소 | 배차</th>
+            `;
+            
+            // 버스 번호 헤더
+            buses.forEach(bus => {
+                tableHtml += `<th style="padding: 6px; border: 1px solid #ddd; min-width: 50px;">${bus}</th>`;
+            });
+            
+            tableHtml += `
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // 각 정류소별 행
+            stations.forEach((station, stationIdx) => {
+                // (경유) 정류장은 숨김
+                if (station.includes('(경유)')) {
+                    return;
+                }
+                
+                tableHtml += `
+                    <tr style="background-color: ${stationIdx % 2 === 0 ? '#f8f9fa' : 'white'};">
+                        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; position: sticky; left: 0; background-color: ${stationIdx % 2 === 0 ? '#f8f9fa' : 'white'}; z-index: 5;">
+                            <span style="color: #6c757d; font-size: 10px;">${stationIdx}</span> ${station}
+                        </td>
+                `;
+                
+                // 각 버스별 셀
+                buses.forEach(bus => {
+                    const passengerCount = passengers[bus] && passengers[bus][stationIdx] !== undefined ? passengers[bus][stationIdx] : null;
+                    const changeAmount = changes[bus] && changes[bus][stationIdx] !== undefined ? changes[bus][stationIdx] : null;
+                    
+                    let cellContent = '';
+                    let cellStyle = 'padding: 8px; border: 1px solid #ddd; text-align: center;';
+                    
+                    if (passengerCount !== null) {
+                        let color = '#2c3e50';
+                        let bgColor = 'transparent';
+                        
+                        // 변화량에 따른 색상 결정
+                        if (changeAmount !== null && changeAmount !== undefined) {
+                            const absChange = Math.abs(changeAmount);
+                            const intensity = Math.min(absChange / 10, 1);
+                            
+                            if (changeAmount > 0) {
+                                // 승차 (양수) - 기점
+                                bgColor = `rgba(220, 20, 20, ${intensity * 0.6})`;
+                                color = '#000000';
+                            } else if (changeAmount < 0) {
+                                // 하차 (음수) - 종점
+                                bgColor = `rgba(20, 20, 220, ${intensity * 0.4})`;
+                                color = '#000000';
+                            }
+                        }
+                        
+                        // 승객 수 표시 (소수점 첫째 자리까지)
+                        if (passengerCount === 0) {
+                            color = '#95a5a6';
+                        }
+                        
+                        // 소수점 첫째 자리까지 표시
+                        const displayCount = typeof passengerCount === 'number' ? passengerCount.toFixed(1) : passengerCount;
+                        cellContent = `<span style="color: ${color}; font-weight: bold;">${displayCount}</span>`;
+                        cellStyle += ` background-color: ${bgColor};`;
+                    }
+                    
+                    tableHtml += `<td style="${cellStyle}">${cellContent}</td>`;
+                });
+                
+                tableHtml += `</tr>`;
+            });
+            
+            tableHtml += `
+                    </tbody>
+                </table>
+            `;
+            
+            // 팝업 생성
+            const popupHtml = `
+                <div id="analysis-popup-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center;">
+                    <div style="background-color: white; width: 95%; max-width: 1400px; height: 90%; max-height: 90vh; border-radius: 10px; padding: 0; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: flex; flex-direction: column;">
+                        <div style="padding: 20px; border-bottom: 2px solid #3498db; background: linear-gradient(135deg, #3498db, #2980b9); text-align: center; flex-shrink: 0; position: relative;">
+                            <h3 style="margin: 0; color: white; font-size: 18px;">📊 ${title} 승객 수 분석</h3>
+                            <div style="color: rgba(255,255,255,0.9); font-size: 12px; margin-top: 5px;">${startDate} ~ ${endDate}</div>
+                            <button onclick="closeAnalysisPopup()" 
+                                    style="position: absolute; top: 15px; right: 15px; background-color: rgba(255, 255, 255, 0.2); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center;"
+                                    onmouseover="this.style.backgroundColor='rgba(255, 255, 255, 0.3)'"
+                                    onmouseout="this.style.backgroundColor='rgba(255, 255, 255, 0.2)'">×</button>
+                        </div>
+                        
+                        <div style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #ddd; flex-shrink: 0;">
+                            <div style="text-align: center; margin-top: 8px; font-size: 11px; color: #6c757d;">
+                                ※ 현재 승객 수 = 45 - 잔여좌석 | 26번,51번 정류소는 모두 하차하여 0명
+                            </div>
+                        </div>
+                        
+                        <div style="flex: 1; overflow: auto; padding: 20px;">
+                            ${tableHtml}
+                        </div>
+                        
+                        <div style="padding: 15px; background-color: #f8f9fa; border-top: 1px solid #ddd; text-align: center; flex-shrink: 0;">
+                            <button onclick="closeAnalysisPopup()" style="background: linear-gradient(135deg, #6c757d, #5a6268); color: white; border: none; border-radius: 25px; padding: 12px 40px; cursor: pointer; font-size: 14px; font-weight: bold;">닫기</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', popupHtml);
+            
+            // ESC 키로 닫기
+            document.addEventListener('keydown', handleEscKey);
+        }
+
+        function displayAnalysisPopup(date, analysisData) {
+            const buses = analysisData.buses;
+            const stations = analysisData.stations;
+            const passengers = analysisData.passengers;  // 승객 수
+            const changes = analysisData.changes;  // 변화량
+            
+            // 테이블 생성
+            let tableHtml = `
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                    <thead>
+                        <tr style="background: linear-gradient(135deg, #3498db, #2980b9); color: white;">
+                            <th style="padding: 8px; border: 1px solid #ddd; position: sticky; left: 0; background: linear-gradient(135deg, #3498db, #2980b9); z-index: 10; min-width: 200px;">최근 정차 정류소 | 배차</th>
+            `;
+            
+            // 버스 번호 헤더
+            buses.forEach(bus => {
+                tableHtml += `<th style="padding: 6px; border: 1px solid #ddd; min-width: 50px;">${bus}</th>`;
+            });
+            
+            tableHtml += `
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            // 각 정류소별 행
+            stations.forEach((station, stationIdx) => {
+                // (경유) 정류장은 숨김
+                if (station.includes('(경유)')) {
+                    return;
+                }
+                
+                tableHtml += `
+                    <tr style="background-color: ${stationIdx % 2 === 0 ? '#f8f9fa' : 'white'};">
+                        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold; position: sticky; left: 0; background-color: ${stationIdx % 2 === 0 ? '#f8f9fa' : 'white'}; z-index: 5;">
+                            <span style="color: #6c757d; font-size: 10px;">${stationIdx}</span> ${station}
+                        </td>
+                `;
+                
+                // 각 버스별 셀
+                buses.forEach(bus => {
+                    const passengerCount = passengers[bus] && passengers[bus][stationIdx] !== undefined ? passengers[bus][stationIdx] : null;
+                    const changeAmount = changes[bus] && changes[bus][stationIdx] !== undefined ? changes[bus][stationIdx] : null;
+                    
+                    let cellContent = '';
+                    let cellStyle = 'padding: 8px; border: 1px solid #ddd; text-align: center;';
+                    
+                    if (passengerCount !== null) {
+                        let color = '#2c3e50';
+                        let bgColor = 'transparent';
+                        
+                        // 변화량에 따른 색상 결정
+                        if (changeAmount !== null && changeAmount !== undefined) {
+                            const absChange = Math.abs(changeAmount);
+                            const intensity = Math.min(absChange / 10, 1);
+                            
+                            if (changeAmount > 0) {
+                                // 승차 (양수) - 기점
+                                bgColor = `rgba(150, 30, 30, ${intensity * 0.5})`;
+                                color = '#000000';
+                            } else if (changeAmount < 0) {
+                                // 하차 (음수) - 종점
+                                bgColor = `rgba(150, 150, 30, ${intensity * 0.3})`;
+                                color = '#000000';
+                            }
+                        }
+                        
+                        // 승객 수 표시 (변화량이 아닌 실제 승객 수)
+                        if (passengerCount === 0) {
+                            color = '#95a5a6';
+                        }
+                        
+                        cellContent = `<span style="color: ${color}; font-weight: bold;">${passengerCount}</span>`;
+                        cellStyle += ` background-color: ${bgColor};`;
+                    }
+                    
+                    tableHtml += `<td style="${cellStyle}">${cellContent}</td>`;
+                });
+                
+                tableHtml += `</tr>`;
+            });
+            
+            tableHtml += `
+                    </tbody>
+                </table>
+            `;
+            
+            // 팝업 생성
+            const popupHtml = `
+                <div id="analysis-popup-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center;">
+                    <div style="background-color: white; width: 95%; max-width: 1400px; height: 90%; max-height: 90vh; border-radius: 10px; padding: 0; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: flex; flex-direction: column;">
+                        <div style="padding: 20px; border-bottom: 2px solid #3498db; background: linear-gradient(135deg, #3498db, #2980b9); text-align: center; flex-shrink: 0; position: relative;">
+                            <h3 style="margin: 0; color: white; font-size: 18px;">📊 ${date} 승객 수 분석</h3>
+                            <button onclick="closeAnalysisPopup()" 
+                                    style="position: absolute; top: 15px; right: 15px; background-color: rgba(255, 255, 255, 0.2); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center;"
+                                    onmouseover="this.style.backgroundColor='rgba(255, 255, 255, 0.3)'"
+                                    onmouseout="this.style.backgroundColor='rgba(255, 255, 255, 0.2)'">×</button>
+                        </div>
+                        
+                        <div style="padding: 15px; background-color: #f8f9fa; border-bottom: 1px solid #ddd; flex-shrink: 0;">
+
+                            <div style="text-align: center; margin-top: 8px; font-size: 11px; color: #6c757d;">
+                                ※ 현재 승객 수 = 45 - 잔여좌석 | 26번,51번 정류소는 모두 하차하여 0명
+                            </div>
+                        </div>
+                        
+                        <div style="flex: 1; overflow: auto; padding: 20px;">
+                            ${tableHtml}
+                        </div>
+                        
+                        <div style="padding: 15px; background-color: #f8f9fa; border-top: 1px solid #ddd; text-align: center; flex-shrink: 0;">
+                            <button onclick="closeAnalysisPopup()" style="background: linear-gradient(135deg, #6c757d, #5a6268); color: white; border: none; border-radius: 25px; padding: 12px 40px; cursor: pointer; font-size: 14px; font-weight: bold;">닫기</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', popupHtml);
+            
+            // ESC 키로 닫기
+            document.addEventListener('keydown', handleEscKey);
+        }
+
+        function handleEscKey(event) {
+            if (event.key === 'Escape') {
+                closeAnalysisPopup();
+            }
+        }
+
+        function closeAnalysisPopup() {
+            const popup = document.getElementById('analysis-popup-overlay');
+            if (popup) {
+                popup.remove();
+                document.removeEventListener('keydown', handleEscKey);
+            }
+        }
+
+        function showLoadingOverlay() {
+            const loadingHtml = `
+                <div id="loading-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 2000; display: flex; justify-content: center; align-items: center;">
+                    <div style="background-color: white; padding: 30px 50px; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); text-align: center;">
+                        <div style="margin-bottom: 20px;">
+                            <div style="width: 60px; height: 60px; border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                        </div>
+                        <div style="color: #2c3e50; font-size: 16px; font-weight: bold;">분석 중...</div>
+                    </div>
+                </div>
+                <style>
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+            `;
+            document.body.insertAdjacentHTML('beforeend', loadingHtml);
+        }
+
+        function hideLoadingOverlay() {
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
+        }
+    </script>
+</body>
+</html>

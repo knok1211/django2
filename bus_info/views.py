@@ -481,4 +481,6 @@ def download_all_files(request):
         }, status=500)
 
 
+# 데이터 분석 관련 뷰는 views_analysis.py로 분리됨
+
 
